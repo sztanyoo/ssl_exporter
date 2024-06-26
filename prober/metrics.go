@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/ocsp"
 	v1 "k8s.io/api/core/v1"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 const (
@@ -282,7 +283,7 @@ func collectFileMetrics(logger log.Logger, files []string, registry *prometheus.
 	return nil
 }
 
-func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Registry) error {
+func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Registry, additionalSecretKeys []string, p12Passwords []string) error {
 	var (
 		totalCerts         []*x509.Certificate
 		kubernetesNotAfter = prometheus.NewGaugeVec(
@@ -302,8 +303,10 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 	)
 	registry.MustRegister(kubernetesNotAfter, kubernetesNotBefore)
 
+	keyList := []string{"tls.crt", "ca.crt"}
+	keyList = append(keyList, additionalSecretKeys...)
 	for _, secret := range secrets {
-		for _, key := range []string{"tls.crt", "ca.crt"} {
+		for _, key := range keyList {
 			data := secret.Data[key]
 			if len(data) == 0 {
 				continue
@@ -311,6 +314,16 @@ func collectKubernetesSecretMetrics(secrets []v1.Secret, registry *prometheus.Re
 			certs, err := decodeCertificates(data)
 			if err != nil {
 				return err
+			}
+			if len(certs) == 0 {
+				// TODO check error when pkcs12
+				for _, password := range p12Passwords {
+					certs, err = pkcs12.DecodeTrustStore(data, password)
+					if err != nil {
+						break
+					}
+					fmt.Println(certs)
+				}
 			}
 			totalCerts = append(totalCerts, certs...)
 			for _, cert := range certs {

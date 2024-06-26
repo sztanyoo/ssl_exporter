@@ -44,7 +44,11 @@ func probeKubernetes(ctx context.Context, target string, module config.Module, r
 	name := parts[1]
 
 	var tlsSecrets []v1.Secret
-	secrets, err := client.CoreV1().Secrets("").List(ctx, metav1.ListOptions{FieldSelector: "type=kubernetes.io/tls"})
+	listOptions := metav1.ListOptions{}
+	if !module.Kubernetes.SecretTypeAll {
+		listOptions.FieldSelector = "type=kubernetes.io/tls"
+	}
+	secrets, err := client.CoreV1().Secrets("").List(ctx, listOptions)
 	if err != nil {
 		return err
 	}
@@ -62,7 +66,7 @@ func probeKubernetes(ctx context.Context, target string, module config.Module, r
 		}
 	}
 
-	return collectKubernetesSecretMetrics(tlsSecrets, registry)
+	return collectKubernetesSecretMetrics(tlsSecrets, registry, module.Kubernetes.AdditionalSecretKeys, module.Kubernetes.P12Passwords)
 }
 
 // newKubeClient returns a Kubernetes client (clientset) from the supplied

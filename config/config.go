@@ -143,7 +143,10 @@ type HTTPSProbe struct {
 
 // KubernetesProbe configures a kubernetes probe
 type KubernetesProbe struct {
-	Kubeconfig string `yaml:"kubeconfig,omitempty"`
+	Kubeconfig           string   `yaml:"kubeconfig,omitempty"`
+	SecretTypeAll        bool     `yaml:"secretTypeAll,omitempty"`
+	AdditionalSecretKeys []string `yaml:"additionalSecretKeys,omitempty"`
+	P12Passwords         []string `yaml:"p12Passwords,omitempty"`
 }
 
 // HTTPFileProbe configures a http_file probe
